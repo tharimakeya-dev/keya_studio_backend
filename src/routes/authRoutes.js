@@ -7,6 +7,8 @@ const { requireAuth } = require('../middleware/auth');
 router.post('/register', authController.register);
 router.post('/login', authController.login);
 router.post('/social-login', authController.socialLogin);
+router.get('/google', authController.googleAuth);
+router.get('/google/callback', authController.googleCallback);
 router.post('/logout', authController.logout);
 
 // Protected routes (Session verification via HTTPOnly cookie)

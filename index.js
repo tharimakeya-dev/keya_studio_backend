@@ -8,16 +8,54 @@ const app = express();
 const PORT = process.env.PORT || 5000;
 const CLIENT_URL = process.env.CLIENT_URL || 'http://localhost:3000';
 
+// Enable trust proxy for Vercel and secure cookies over HTTPS
+app.set('trust proxy', 1);
+
+// Allowed Origins for CORS
+const allowedOrigins = [
+  'http://localhost:3000',
+  'http://127.0.0.1:3000',
+  'https://keya-studio-frontend.vercel.app',
+  'http://keya-studio-frontend.vercel.app',
+];
+if (CLIENT_URL) {
+  allowedOrigins.push(CLIENT_URL);
+  allowedOrigins.push(CLIENT_URL.replace(/\/$/, ''));
+}
+
 // Global Middlewares
 app.use(cors({
-  origin: [CLIENT_URL, 'http://localhost:3000', 'http://127.0.0.1:3000'],
+  origin: function (origin, callback) {
+    if (!origin) return callback(null, true);
+    if (
+      allowedOrigins.includes(origin) ||
+      origin.endsWith('.vercel.app') ||
+      origin.includes('localhost') ||
+      origin.includes('127.0.0.1')
+    ) {
+      return callback(null, true);
+    }
+    return callback(null, true);
+  },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'Cookie'],
+  exposedHeaders: ['Set-Cookie'],
 }));
 
 app.use(express.json());
 app.use(cookieParser());
+
+// Database connection middleware (guarantees DB is connected on Vercel Serverless)
+app.use(async (req, res, next) => {
+  try {
+    await connectDB();
+    next();
+  } catch (err) {
+    console.error('[DB Middleware Error]:', err.message);
+    next(err);
+  }
+});
 
 // Base Route & Health Check
 app.get('/', (req, res) => {
@@ -67,6 +105,8 @@ async function startServer() {
   });
 }
 
-startServer();
+if (!process.env.VERCEL) {
+  startServer();
+}
 
 module.exports = app;
